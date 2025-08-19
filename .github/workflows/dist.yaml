@@ -1,0 +1,97 @@
+name: Automate tasks for commits to dist branches
+on:
+  push:
+    branches:
+      - main
+      - beta
+jobs:
+  runTests:
+    name: Run tests suites, and upload coverage reports
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Jest, ESLint
+        run: npm run ci:test
+
+      - name: Upload test reports
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Tests
+          path: reports/tests-junit.xml
+          reporter: jest-junit
+
+      - name: Storybook CI
+        id: chromatic
+        uses: chromaui/action@v1
+        with:
+          buildScriptName: "build-storybook"
+          exitOnceUploaded: true
+          onlyChanged: true
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          autoAcceptChanges: true
+          exitZeroOnChanges: true
+
+      - name: Storybook tests
+        run: npm run ci:test-storybook
+        env:
+          TARGET_URL: "${{ steps.chromatic.outputs.storybookUrl }}"
+          JEST_JUNIT_OUTPUT_DIR: "reports"
+          JEST_JUNIT_OUTPUT_NAME: "storybook-junit.xml"
+
+      - name: Upload test reports
+        uses: dorny/test-reporter@v1
+        with:
+          name: Storybook
+          path: reports/storybook-junit.xml
+          reporter: jest-junit
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./coverage/
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  makeRelease:
+    if: contains(github.event.head_commit.message, 'chore(release):')
+    name: Make release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+      - run: npm ci
+      - name: Configure NPM
+        run: npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - run: |
+          echo "GitHub ref is ${{ github.ref }}"
+          echo "GitHub ref name is ${{ github.ref_name }}"
+
+      - name: Publish release @beta
+        if: ${{ github.ref_name == 'beta' && contains(github.event.head_commit.message, '-beta.') }}
+        run: |
+          npm run publish-release:beta
+
+      - name: Publish release @latest
+        if: ${{ github.ref_name == 'main' && !contains(github.event.head_commit.message, '-beta.') }}
+        run: |
+          npm run publish-release:latest

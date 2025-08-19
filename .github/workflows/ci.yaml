@@ -1,0 +1,99 @@
+name: CI
+on:
+  push:
+    branches-ignore:
+      - main
+      - beta
+      - release/latest
+      - release/beta
+jobs:
+  commit-checks:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    env:
+      RUN_STORYBOOK: ${{ !contains(github.ref, 'renovate/') || contains(github.ref, 'renovate/storybook') }}
+
+    steps:
+      - name: Dump job env
+        run: echo env
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Type-checking
+        run: npm run ci:typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Vitest
+        run: npm run ci:test
+
+      - name: Upload test reports
+        uses: dorny/test-reporter@v1
+        if: ${{ fromJSON(env.RUN_STORYBOOK) && (success() || failure()) }}
+        with:
+          name: Tests
+          path: reports/tests-junit.xml
+          reporter: jest-junit
+
+      - name: Vite build (prod)
+        run: npm run build:prod
+      
+      - name: Vite build (Roam Depot)
+        run: npm run build:roam
+      
+      - name: Vite build (sandbox)
+        run: npm run build:sandbox
+
+      - name: Commit to repository
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "auto-commit: lint, test, build"
+        continue-on-error: true # See https://github.com/stefanzweifel/git-auto-commit-action/issues/204
+
+      - name: Storybook CI
+        id: chromatic
+        uses: chromaui/action@v1
+        if: fromJSON(env.RUN_STORYBOOK)
+        with:
+          buildScriptName: "build-storybook"
+          exitOnceUploaded: true
+          onlyChanged: true
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          exitZeroOnChanges: true
+
+      - name: Storybook tests
+        if: fromJSON(env.RUN_STORYBOOK)
+        run: npm run ci:test-storybook
+        env:
+          TARGET_URL: "${{ steps.chromatic.outputs.storybookUrl }}"
+          JEST_JUNIT_OUTPUT_DIR: "reports"
+          JEST_JUNIT_OUTPUT_NAME: "storybook-junit.xml"
+
+      - name: Upload test reports
+        uses: dorny/test-reporter@v1
+        if: fromJSON(env.RUN_STORYBOOK)
+        with:
+          name: Storybook
+          path: reports/storybook-junit.xml
+          reporter: jest-junit
+
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        if: fromJSON(env.RUN_STORYBOOK)
+        with:
+          directory: ./coverage/
+          verbose: true
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

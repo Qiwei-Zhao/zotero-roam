@@ -1,0 +1,35 @@
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: no
+coverage:
+  precision: 2
+  round: up
+  range: 70...100
+  status:
+    patch:
+      default:
+        target: auto
+        threshold: 5%
+        base: auto
+    project:
+      default:
+        target: 85%
+        threshold: 5%
+      dev:
+        paths:
+          - .storybook/
+          - mocks/
+        target: 90%
+        threshold: 5%
+      utils:
+        paths:
+          - src/hooks/
+          - src/setup.ts
+          - src/utils.ts
+        target: 95%
+        threshold: 5%
+# ignore:
+#   - src/components
