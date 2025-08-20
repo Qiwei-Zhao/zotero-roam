@@ -114,50 +114,67 @@ const Autocomplete = memo(function Autocomplete() {
 
 	// Detect if a block is currently being edited
 	const checkEditingMode = useCallback(() => {
-		const textArea = document.querySelector("textarea.rm-block-input");
-		if (!textArea || textArea.getAttribute("zotero-tribute") != null) {return;}
+		try {
+			const textArea = document.querySelector("textarea.rm-block-input");
+			if (!textArea || textArea.getAttribute("zotero-tribute") != null) {return;}
 
-		document.querySelectorAll(`.${CustomClasses.TRIBUTE}`).forEach(d => d.remove());
+			document.querySelectorAll(`.${CustomClasses.TRIBUTE}`).forEach(d => d?.remove());
 
-		textArea.setAttribute("zotero-tribute", "active");
+			textArea.setAttribute("zotero-tribute", "active");
 
-		// TODO: extract code below into a service
+			// TODO: extract code below into a service
 
-		const tribute = new Tribute(tributeFactory);
-		tribute.attach(textArea);
+			const tribute = new Tribute(tributeFactory);
+			tribute.attach(textArea);
 
-		textArea.addEventListener("tribute-replaced", (e: CustomEvent<TributeJS.Events.TributeReplaced>) => {
-			const item = e.detail.item;
-			if(item.original.source == "zotero"){
-				const triggerString = e.detail.context.mentionTriggerChar + e.detail.context.mentionText;
-				const triggerPos = e.detail.context.mentionPosition;
+			textArea.addEventListener("tribute-replaced", (e: CustomEvent<TributeJS.Events.TributeReplaced>) => {
+				try {
+					const item = e.detail.item;
+					if(item.original.source == "zotero"){
+						const triggerString = e.detail.context.mentionTriggerChar + e.detail.context.mentionText;
+						const triggerPos = e.detail.context.mentionPosition;
 
-				const replacement = e.detail.item.original.value;
-				const blockContents = (e.target as HTMLTextAreaElement).defaultValue;
+						const replacement = e.detail.item.original.value;
+						const blockContents = (e.target as HTMLTextAreaElement).defaultValue;
 
-				const escapedTrigger = escapeRegExp(triggerString);
-				const triggerRegex = new RegExp(escapedTrigger, "g");
-				const newText = blockContents.replaceAll(triggerRegex, (match, pos) => (pos == triggerPos) ? replacement : match );
+						const escapedTrigger = escapeRegExp(triggerString);
+						const triggerRegex = new RegExp(escapedTrigger, "g");
+						const newText = blockContents.replaceAll(triggerRegex, (match, pos) => (pos == triggerPos) ? replacement : match );
 
-				const setValue = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set;
-				setValue!.call(textArea, newText);
+						const setValue = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set;
+						setValue!.call(textArea, newText);
 
-				const ev = new Event("input", { bubbles: true });
-				textArea.dispatchEvent(ev); 
-			}
-		});
+						const ev = new Event("input", { bubbles: true });
+						textArea.dispatchEvent(ev); 
+					}
+				} catch (err) {
+					console.warn("ZoteroRoam Debug: tribute-replaced handler error", err);
+				}
+			});
+		} catch (err) {
+			console.warn("ZoteroRoam Debug: checkEditingMode error", err);
+		}
 	}, [tributeFactory]);
 
 	useEffect(() => {
-		const editingObserver = new MutationObserver(checkEditingMode);
-		editingObserver.observe(document, { childList: true, subtree: true });
+		const safeCallback: MutationCallback = (...args) => {
+			try {
+				checkEditingMode();
+			} catch (err) {
+				console.warn("ZoteroRoam Debug: MutationObserver callback error", err, args);
+			}
+		};
+
+		const editingObserver = new MutationObserver(safeCallback);
+		try {
+			editingObserver.observe(document, { childList: true, subtree: true });
+		} catch (err) {
+			console.warn("ZoteroRoam Debug: Failed to observe mutations", err);
+		}
 
 		return () => {
-			editingObserver.disconnect();
-			try { document.querySelector(`.${CustomClasses.TRIBUTE}`)!.remove(); } 
-			catch(e){
-				// Do nothing
-			}
+			try { editingObserver.disconnect(); } catch {}
+			try { document.querySelector(`.${CustomClasses.TRIBUTE}`)?.remove(); } catch {}
 		};
 	}, [checkEditingMode]);
 
