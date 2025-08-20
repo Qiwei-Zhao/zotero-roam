@@ -11,7 +11,7 @@ import { cleanError, transformDOIs } from "../../utils";
 const semanticClient = axios.create({
 	baseURL: "https://api.semanticscholar.org/graph/v1/paper/",
 	params: {
-		"fields": "citations.title,citations.authors,citations.year,citations.externalIds,citations.venue,citations.paperId,citations.url,references.title,references.authors,references.year,references.externalIds,references.venue,references.paperId,references.url"
+		"fields": "paperId,referenceCount,citationCount,citations.title,citations.authors,citations.year,citations.externalIds,citations.venue,citations.paperId,citations.url,references.title,references.authors,references.year,references.externalIds,references.venue,references.paperId,references.url"
 	}
 });
 axiosRetry(semanticClient, {
