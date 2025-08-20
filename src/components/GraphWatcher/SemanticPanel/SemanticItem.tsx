@@ -59,10 +59,11 @@ const SemanticItem = memo<OwnProps>(function SemanticItem(props) {
 	}, [handleClick, inGraph, inLibrary, isSelected, item.doi, item.url]);
 
 	const itemIntents = useMemo(() => {
+		const intents = Array.isArray(item.intent) ? item.intent : [];
 		return (
 			<div className="zr-related-item--intents">
-				{(item.intent || []).length > 0
-					? (item.intent || []).map(int => {
+				{intents.length > 0
+					? intents.map(int => {
 						const capitalizedIntent = int.charAt(0).toUpperCase() + int.slice(1);
 						return <Tag key={int} data-semantic-intent={int} htmlTitle={"This citation was classified as related to " + capitalizedIntent + " by Semantic Scholar"} minimal={true}>{capitalizedIntent}</Tag>;})
 					: null}
@@ -71,6 +72,9 @@ const SemanticItem = memo<OwnProps>(function SemanticItem(props) {
 	}, [item.intent]);
 
 	const itemLinks = useMemo(() => {
+		if (!item.links || typeof item.links !== 'object') {
+			return null;
+		}
 		return (
 			<div className="zr-related-item--links">
 				{Object.keys(item.links).map((key) => {

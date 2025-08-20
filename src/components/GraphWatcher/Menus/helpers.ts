@@ -88,7 +88,8 @@ function cleanSemanticItem(item: SemanticScholarAPI.RelatedPaper): SCleanItem {
 	};
 
 	// Parse authors data
-	clean_item.authorsLastNames = (item.authors || []).map(a => getAuthorLastName(a.name));
+	const authors = Array.isArray(item.authors) ? item.authors : [];
+	clean_item.authorsLastNames = authors.map(a => getAuthorLastName(a?.name));
 	clean_item.authorsString = clean_item.authorsLastNames.join(" ");
 	clean_item.authors = makeAuthorsSummary(clean_item.authorsLastNames);
 
@@ -226,34 +227,60 @@ function matchSemanticEntry(
 	if (!libItem && cleanItem.title) {
 		console.log('ZoteroRoam Debug: Trying title matching for:', cleanItem.title.substring(0, 50) + '...');
 		
-		// Normalize titles for comparison (remove punctuation, lowercase, trim)
-		const normalizeTitle = (title: string) => 
+		// More restrictive normalization for better matching
+		const normalizeTitle = (title: string) => {
+			// Keep more structure, only remove excessive whitespace and normalize case
+			return title.toLowerCase()
+				.replace(/\s+/g, ' ')
+				.trim();
+		};
+		
+		// Additional function for strict comparison (removes punctuation)
+		const strictNormalizeTitle = (title: string) => 
 			title.toLowerCase()
-				.replace(/[^\w\s]/g, ' ')
+				.replace(/[^\w\s\u4e00-\u9fff]/g, ' ') // Keep Chinese characters
 				.replace(/\s+/g, ' ')
 				.trim();
 		
 		const semanticTitleNorm = normalizeTitle(cleanItem.title);
+		const semanticTitleStrict = strictNormalizeTitle(cleanItem.title);
 		console.log('ZoteroRoam Debug: Normalized semantic title:', semanticTitleNorm.substring(0, 80) + '...');
 		
 		libItem = items.find(it => {
 			if (!it.data.title) return false;
 			const libTitleNorm = normalizeTitle(it.data.title);
+			const libTitleStrict = strictNormalizeTitle(it.data.title);
 			
-			// Try exact normalized match
+			// Language detection - basic check for Chinese vs English
+			const isSemanticChinese = /[\u4e00-\u9fff]/.test(cleanItem.title);
+			const isLibraryChinese = /[\u4e00-\u9fff]/.test(it.data.title);
+			
+			// Skip cross-language matching unless titles are very similar
+			if (isSemanticChinese !== isLibraryChinese) {
+				console.log('ZoteroRoam Debug: Language mismatch, skipping:', it.data.title.substring(0, 30));
+				return false;
+			}
+			
+			// Try exact normalized match (with minimal normalization)
 			if (libTitleNorm === semanticTitleNorm) {
 				console.log('ZoteroRoam Debug: EXACT TITLE MATCH found!', 'Library title:', it.data.title);
 				return true;
 			}
 			
-			// Try substring match (for longer titles)
-			if (semanticTitleNorm.length > 20) {
-				if (libTitleNorm.includes(semanticTitleNorm)) {
-					console.log('ZoteroRoam Debug: SUBSTRING TITLE MATCH found!', 'Library title:', it.data.title);
-					return true;
-				}
-				if (semanticTitleNorm.includes(libTitleNorm)) {
-					console.log('ZoteroRoam Debug: REVERSE SUBSTRING TITLE MATCH found!', 'Library title:', it.data.title);
+			// Try strict normalized match (with punctuation removal)
+			if (libTitleStrict === semanticTitleStrict && semanticTitleStrict.length > 10) {
+				console.log('ZoteroRoam Debug: STRICT TITLE MATCH found!', 'Library title:', it.data.title);
+				return true;
+			}
+			
+			// Try substring match only for long titles (>30 chars) and same language
+			if (semanticTitleNorm.length > 30 && libTitleNorm.length > 30) {
+				// Check if one title is substantially contained in the other (>80% match)
+				const shorterTitle = semanticTitleNorm.length < libTitleNorm.length ? semanticTitleNorm : libTitleNorm;
+				const longerTitle = semanticTitleNorm.length >= libTitleNorm.length ? semanticTitleNorm : libTitleNorm;
+				
+				if (longerTitle.includes(shorterTitle) && shorterTitle.length / longerTitle.length > 0.8) {
+					console.log('ZoteroRoam Debug: SUBSTANTIAL SUBSTRING MATCH found!', 'Library title:', it.data.title);
 					return true;
 				}
 			}
