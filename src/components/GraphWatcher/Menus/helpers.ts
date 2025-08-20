@@ -17,7 +17,8 @@ function cleanSemantic(
 	// * Note: DOIs from the Semantic Scholar queries are sanitized at fetch
 	const { citations = [], references = [] } = semantic || {};
 	
-	// Debug logging
+	// Debug logging - Extension loaded check
+	console.log('🚀 ZoteroRoam Debug: Extension loaded and semantic data processing started!', new Date().toISOString());
 	console.log('ZoteroRoam Debug: Total items in library:', items.length);
 	console.log('ZoteroRoam Debug: Items with valid DOIs:', itemsWithDOIs.length);
 	console.log('ZoteroRoam Debug: Citations from Semantic Scholar:', citations.length);
@@ -276,7 +277,7 @@ function matchSemanticEntry(
 		};
 	} else {
 		const itemKey = libItem.data.key;
-		const location = libItem.library.type + "s/" + libItem.library.id;
+		const location = libItem.library?.type + "s/" + libItem.library?.id;
 		const children = identifyChildren(itemKey, location, { pdfs: pdfs, notes: notes });
 
 		return {

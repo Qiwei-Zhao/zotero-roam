@@ -513,9 +513,9 @@ function getWebLink(item: ZItemTop, { format = "markdown", text = "Web library" 
  * @returns The item's children
  */
 function identifyChildren(itemKey: string, location: string, { pdfs = [], notes = [] }: { pdfs?: ZItemAttachment[], notes?: (ZItemNote | ZItemAnnotation)[] } = {}){
-	const pdfItems = pdfs.filter(p => p.data.parentItem == itemKey && (p.library.type + "s/" + p.library.id == location));
+	const pdfItems = pdfs.filter(p => p.data.parentItem == itemKey && p.library && (p.library.type + "s/" + p.library.id == location));
 	const pdfKeys = pdfItems.map(p => p.key);
-	const noteItems = notes.filter(n => [itemKey, ...pdfKeys].includes(n.data.parentItem) && n.library.type + "s/" + n.library.id == location);
+	const noteItems = notes.filter(n => [itemKey, ...pdfKeys].includes(n.data.parentItem) && n.library && n.library.type + "s/" + n.library.id == location);
 
 	return {
 		pdfs: pdfItems,

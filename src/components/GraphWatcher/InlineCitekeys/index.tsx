@@ -54,7 +54,7 @@ const useGetItems = (reqs: DataRequest[]): ItemsMap => {
 					: hasDOI
 						? { href: "https://doi/org/" + hasDOI, title: hasDOI }
 						: false;
-				const location = item.library.type + "s/" + item.library.id;
+				const location = item.library?.type + "s/" + item.library?.id;
 
 				const children = identifyChildren(item.data.key, location, { pdfs: lib.pdfs, notes: lib.notes });
 
