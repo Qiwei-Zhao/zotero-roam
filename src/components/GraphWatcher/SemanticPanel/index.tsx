@@ -37,9 +37,9 @@ const SemanticTabList = memo<SemanticTabListProps>(function SemanticTabList(prop
 
 	const selectTab = useCallback((newtab, _prevtab, _event) => setActiveTab(newtab), []);
 
-	const references = useMemo(() =>  sortElems(items.references, "year"), [items.references]);
+	const references = useMemo(() =>  sortElems(items?.references || [], "year"), [items?.references]);
 
-	const citations = useMemo(() => sortElems(items.citations, "year"), [items.citations]);
+	const citations = useMemo(() => sortElems(items?.citations || [], "year"), [items?.citations]);
 
 	const references_title = useMemo(() => {
 		return (

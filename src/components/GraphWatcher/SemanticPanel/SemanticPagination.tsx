@@ -107,7 +107,7 @@ const SemanticPagination = memo<SemanticPaginationProps>(function SemanticPagina
 		setCurrentPage(1);
 	}, [setCurrentPage, toggleFilter]);
 
-	const filteredItems = useMemo(() => filter(items, filterList), [filterList, items]);
+	const filteredItems = useMemo(() => filter(items || [], filterList), [filterList, items]);
 
 	const queriedItems = useMemo(() => !query ? filteredItems : search(query, filteredItems), [filteredItems, query]);
 
