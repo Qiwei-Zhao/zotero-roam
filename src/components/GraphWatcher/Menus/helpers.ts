@@ -195,24 +195,45 @@ function matchSemanticEntry(
 			return false;
 		});
 		
-		// If no exact match, try case-insensitive and more flexible matching
-		if (!libItem) {
+		// If no exact match, try more flexible DOI matching strategies
+		if (!libItem && cleanItem.doi) {
 			libItem = items.find(it => {
+				if (!it.data || !it.data.DOI) return false;
+				
 				const libDOI = parseDOI(it.data.DOI);
-				if (libDOI && cleanItem.doi) {
-					// Try case-insensitive comparison
-					if (libDOI.toLowerCase() === cleanItem.doi.toLowerCase()) {
-						console.log('ZoteroRoam Debug: CASE-INSENSITIVE DOI MATCH found!', 'Semantic DOI:', cleanItem.doi, 'Library DOI:', libDOI);
-						return true;
-					}
-					// Try removing common prefixes/suffixes
-					const cleanSemanticDOI = cleanItem.doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '').toLowerCase();
-					const cleanLibDOI = libDOI.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '').toLowerCase();
-					if (cleanSemanticDOI === cleanLibDOI) {
-						console.log('ZoteroRoam Debug: CLEANED DOI MATCH found!', 'Semantic DOI:', cleanSemanticDOI, 'Library DOI:', cleanLibDOI);
+				if (!libDOI) return false;
+				
+				// Try case-insensitive comparison
+				if (libDOI.toLowerCase() === cleanItem.doi.toLowerCase()) {
+					console.log('ZoteroRoam Debug: CASE-INSENSITIVE DOI MATCH found!', 'Semantic DOI:', cleanItem.doi, 'Library DOI:', libDOI);
+					return true;
+				}
+				
+				// Try removing common prefixes/suffixes and URLs
+				const cleanSemanticDOI = cleanItem.doi
+					.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '')
+					.replace(/^doi:/, '')
+					.toLowerCase()
+					.trim();
+				const cleanLibDOI = libDOI
+					.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '')
+					.replace(/^doi:/, '')
+					.toLowerCase()
+					.trim();
+					
+				if (cleanSemanticDOI === cleanLibDOI && cleanSemanticDOI.length > 5) {
+					console.log('ZoteroRoam Debug: CLEANED DOI MATCH found!', 'Semantic DOI:', cleanSemanticDOI, 'Library DOI:', cleanLibDOI);
+					return true;
+				}
+				
+				// Try partial DOI matching for cases where one DOI might be truncated
+				if (cleanSemanticDOI.length > 10 && cleanLibDOI.length > 10) {
+					if (cleanSemanticDOI.includes(cleanLibDOI) || cleanLibDOI.includes(cleanSemanticDOI)) {
+						console.log('ZoteroRoam Debug: PARTIAL DOI MATCH found!', 'Semantic DOI:', cleanSemanticDOI, 'Library DOI:', cleanLibDOI);
 						return true;
 					}
 				}
+				
 				return false;
 			});
 		}
@@ -223,77 +244,9 @@ function matchSemanticEntry(
 		}
 	}
 	
-	// Second try: Match by title (if no DOI match)
-	if (!libItem && cleanItem.title) {
-		console.log('ZoteroRoam Debug: Trying title matching for:', cleanItem.title.substring(0, 50) + '...');
-		
-		// More restrictive normalization for better matching
-		const normalizeTitle = (title: string) => {
-			// Keep more structure, only remove excessive whitespace and normalize case
-			return title.toLowerCase()
-				.replace(/\s+/g, ' ')
-				.trim();
-		};
-		
-		// Additional function for strict comparison (removes punctuation)
-		const strictNormalizeTitle = (title: string) => 
-			title.toLowerCase()
-				.replace(/[^\w\s\u4e00-\u9fff]/g, ' ') // Keep Chinese characters
-				.replace(/\s+/g, ' ')
-				.trim();
-		
-		const semanticTitleNorm = normalizeTitle(cleanItem.title);
-		const semanticTitleStrict = strictNormalizeTitle(cleanItem.title);
-		console.log('ZoteroRoam Debug: Normalized semantic title:', semanticTitleNorm.substring(0, 80) + '...');
-		
-		libItem = items.find(it => {
-			if (!it.data.title) return false;
-			const libTitleNorm = normalizeTitle(it.data.title);
-			const libTitleStrict = strictNormalizeTitle(it.data.title);
-			
-			// Language detection - basic check for Chinese vs English
-			const isSemanticChinese = /[\u4e00-\u9fff]/.test(cleanItem.title);
-			const isLibraryChinese = /[\u4e00-\u9fff]/.test(it.data.title);
-			
-			// Skip cross-language matching unless titles are very similar
-			if (isSemanticChinese !== isLibraryChinese) {
-				console.log('ZoteroRoam Debug: Language mismatch, skipping:', it.data.title.substring(0, 30));
-				return false;
-			}
-			
-			// Try exact normalized match (with minimal normalization)
-			if (libTitleNorm === semanticTitleNorm) {
-				console.log('ZoteroRoam Debug: EXACT TITLE MATCH found!', 'Library title:', it.data.title);
-				return true;
-			}
-			
-			// Try strict normalized match (with punctuation removal)
-			if (libTitleStrict === semanticTitleStrict && semanticTitleStrict.length > 10) {
-				console.log('ZoteroRoam Debug: STRICT TITLE MATCH found!', 'Library title:', it.data.title);
-				return true;
-			}
-			
-			// Try substring match only for long titles (>30 chars) and same language
-			if (semanticTitleNorm.length > 30 && libTitleNorm.length > 30) {
-				// Check if one title is substantially contained in the other (>80% match)
-				const shorterTitle = semanticTitleNorm.length < libTitleNorm.length ? semanticTitleNorm : libTitleNorm;
-				const longerTitle = semanticTitleNorm.length >= libTitleNorm.length ? semanticTitleNorm : libTitleNorm;
-				
-				if (longerTitle.includes(shorterTitle) && shorterTitle.length / longerTitle.length > 0.8) {
-					console.log('ZoteroRoam Debug: SUBSTANTIAL SUBSTRING MATCH found!', 'Library title:', it.data.title);
-					return true;
-				}
-			}
-			
-			return false;
-		});
-		
-		if (libItem) {
-			console.log('ZoteroRoam Debug: Title match for', cleanItem.title.substring(0, 50) + '...', '- Found:', libItem.data.title);
-		} else {
-			console.log('ZoteroRoam Debug: No title match found. Available library titles (first 3):', 
-				items.slice(0, 3).map(it => it.data.title?.substring(0, 50) + '...'));
-		}
+	// Only match by DOI for accuracy - no title matching
+	if (!libItem && !cleanItem.doi) {
+		console.log('ZoteroRoam Debug: No DOI available for', cleanItem.title.substring(0, 50) + '... - Cannot match without DOI');
 	}
 	
 	if (!libItem) {
@@ -303,8 +256,18 @@ function matchSemanticEntry(
 			inLibrary: false
 		};
 	} else {
+		// Ensure libItem has all required properties
+		if (!libItem.data || !libItem.library || !libItem.library.type || !libItem.library.id) {
+			console.warn('ZoteroRoam Debug: Invalid libItem structure:', libItem);
+			return {
+				...cleanItem,
+				inGraph: false,
+				inLibrary: false
+			};
+		}
+		
 		const itemKey = libItem.data.key;
-		const location = libItem.library?.type + "s/" + libItem.library?.id;
+		const location = libItem.library.type + "s/" + libItem.library.id;
 		const children = identifyChildren(itemKey, location, { pdfs: pdfs, notes: notes });
 
 		return {
