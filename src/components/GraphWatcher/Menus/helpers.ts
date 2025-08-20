@@ -12,8 +12,8 @@ function cleanSemantic(
 	semantic: Pick<SemanticScholarAPI.Item, "citations" | "references">,
 	roamCitekeys: RCitekeyPages
 ): SRelatedEntries {
-	const { items = [], pdfs = [], notes = [] } = datastore;
-	const itemsWithDOIs = items.filter(it => parseDOI(it.data.DOI));
+	const { items = [], pdfs = [], notes = [] } = datastore || {};
+	const itemsWithDOIs = (Array.isArray(items) ? items : []).filter(it => parseDOI(it.data.DOI));
 	// * Note: DOIs from the Semantic Scholar queries are sanitized at fetch
 	const { citations = [], references = [] } = semantic || {};
 	
@@ -36,7 +36,7 @@ function cleanSemantic(
 		});
 	}
 
-	const clean_citations: SEnrichedItemCitation[] = citations.map((cit) => {
+	const clean_citations: SEnrichedItemCitation[] = (Array.isArray(citations) ? citations : []).map((cit) => {
 		const cleanProps = matchSemanticEntry(cit, { items: itemsWithDOIs, pdfs, notes }, roamCitekeys);
 		return {
 			...cleanProps,
@@ -44,7 +44,7 @@ function cleanSemantic(
 		};
 	});
 
-	const clean_references: SEnrichedItemReference[] = references.map((ref) => {
+	const clean_references: SEnrichedItemReference[] = (Array.isArray(references) ? references : []).map((ref) => {
 		const cleanProps = matchSemanticEntry(ref, { items: itemsWithDOIs, pdfs, notes }, roamCitekeys);
 		return {
 			...cleanProps,

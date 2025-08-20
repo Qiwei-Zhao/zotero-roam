@@ -178,13 +178,13 @@ function RelatedItemsBar(props: RelatedItemsBarProps) {
 						<Button aria-disabled={citCount == 0} disabled={citCount == 0} className={ showClasses.citations } loading={isLoading} minimal={true} onClick={showCitations} icon="chat" intent="warning" role="menuitem" aria-haspopup="dialog" title="Show citations" >{ pluralize(citCount, "citation") }</Button>
 						<Button className={ showClasses.backlinks } loading={isLoading} minimal={true} onClick={toggleBacklinks} {...showBacklinksButtonProps} role="menuitem" title="Show backlinks" />
 					</ButtonGroup>
-					{refCount + citCount > 0
-						? <SemanticPanel
-							isOpen={isDialogOpen} 
-							items={cleanSemanticData}
-							onClose={closeDialog}
-							show={isShowing} />
-						: null}
+						{isDialogOpen && (refCount + citCount > 0)
+							? <SemanticPanel
+								isOpen={isDialogOpen} 
+								items={cleanSemanticData}
+								onClose={closeDialog}
+								show={isShowing} />
+							: null}
 					<Backlinks isOpen={isBacklinksListOpen} items={cleanSemanticData.backlinks} origin={origin} />
 				</>
 			}
