@@ -157,6 +157,8 @@ const Autocomplete = memo(function Autocomplete() {
 	}, [tributeFactory]);
 
 	useEffect(() => {
+		// If autocomplete trigger is not configured, skip attaching MutationObserver entirely
+		if (!trigger) { return; }
 		const safeCallback: MutationCallback = (...args) => {
 			try {
 				checkEditingMode();
@@ -176,7 +178,7 @@ const Autocomplete = memo(function Autocomplete() {
 			try { editingObserver.disconnect(); } catch {}
 			try { document.querySelector(`.${CustomClasses.TRIBUTE}`)?.remove(); } catch {}
 		};
-	}, [checkEditingMode]);
+	}, [checkEditingMode, trigger]);
 
 	return null;
 });
