@@ -1,5 +1,5 @@
 export namespace SemanticScholarAPI {
-	interface BasePaper {
+	export interface BasePaper {
 		arxivId: string | null,
 		authors: { authorId: string, name: string, url?: string }[],
 		doi: string | false,

@@ -11,7 +11,9 @@ import { cleanError, transformDOIs } from "../../utils";
 const semanticClient = axios.create({
 	baseURL: "https://api.semanticscholar.org/graph/v1/paper/",
 	params: {
-		"fields": "paperId,referenceCount,citationCount,citations.title,citations.authors,citations.year,citations.externalIds,citations.venue,citations.paperId,citations.url,references.title,references.authors,references.year,references.externalIds,references.venue,references.paperId,references.url"
+		"fields": "paperId,doi,referenceCount,citationCount,citations.title,citations.authors,citations.year,citations.externalIds,citations.venue,citations.paperId,citations.url,citations.doi,references.title,references.authors,references.year,references.externalIds,references.venue,references.paperId,references.url,references.doi",
+		"citations.limit": 1000,
+		"references.limit": 1000
 	}
 });
 axiosRetry(semanticClient, {
@@ -32,14 +34,14 @@ async function fetchExternalIdsByPaperId(paperId: string) {
 }
 
 /** For citations/references, backfill missing externalIds.DOI via paperId */
-async function augmentDOIs(arr?: Array<{ paperId?: string, externalIds?: { DOI?: string } }>) {
-	const list = Array.isArray(arr) ? arr : [];
-	const augmented = await Promise.all(list.map(async (p) => {
+async function augmentDOIs<T extends { paperId?: string, externalIds?: { DOI?: string }, doi: string | false | null }>(arr?: T[]): Promise<T[]> {
+	const list = Array.isArray(arr) ? arr as T[] : [] as T[];
+	const augmented = await Promise.all(list.map(async (p): Promise<T> => {
 		const hasDOI = p.externalIds?.DOI;
 		if (hasDOI || !p.paperId) return p;
 		const fetched = await fetchExternalIdsByPaperId(p.paperId);
 		if (fetched && fetched.externalIds?.DOI) {
-			return { ...p, externalIds: { ...p.externalIds, ...fetched.externalIds } };
+			return { ...p, externalIds: { ...p.externalIds, ...fetched.externalIds } } as T;
 		}
 		return p;
 	}));

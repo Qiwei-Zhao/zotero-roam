@@ -323,7 +323,7 @@ const CitekeyMenu = memo<CitekeyMenuProps>(function CitekeyMenu({ item, itemList
 			? <ButtonLink icon="layout" intent="primary" text="Connected Papers" href={"https://www.connectedpapers.com/" + (doi ? "api/redirect/doi/" + doi : "search?q=" + encodeURIComponent(item.data.title)) } role="menuitem" />
 			: null;
 		const semanticLink = doi && defaults.includes("semanticScholar") 
-			? <ButtonLink icon="bookmark" intent="primary" text="Semantic Scholar" href={"https://api.semanticscholar.org/" + doi} role="menuitem" /> 
+			? <ButtonLink icon="bookmark" intent="primary" text="Semantic Scholar" href={"https://www.semanticscholar.org/doi/" + encodeURIComponent(doi)} role="menuitem" /> 
 			: null;
 		const googleScholarLink = defaults.includes("googleScholar")
 			? <ButtonLink icon="learning" intent="primary" text="Google Scholar" href={"https://scholar.google.com/scholar?q=" + (doi || encodeURIComponent(item.data.title))} role="menuitem" />
